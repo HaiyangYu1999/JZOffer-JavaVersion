@@ -56,8 +56,6 @@
 
 
 
-## 2. 按层反序列化
-
 其实上面也讲了反序列化的方法
 
 > 我们先选取第0个节点1, 所以当前层的非null节点数量为1, 所以接下来的`1 * 2`个节点就为下一层的节点[2, 3]
@@ -172,6 +170,105 @@ public class Codec {
             }
         }
         return list;
+    }
+}
+
+// Your Codec object will be instantiated and called as such:
+// Codec codec = new Codec();
+// codec.deserialize(codec.serialize(root));
+```
+
+## 2. 按前序遍历序列化
+
+剑指offer上使用的是前序遍历的序列化, 首先序列化根节点, 然后序列化左子树, 然后序列化右子树. 如果碰到null, 就把这个null写入进去, 并且停止递归.
+
+例如,  设`sub(i)`为以i为根节点的子树的序列化, sub(null) 永远为null
+
+```
+      1
+     / \
+    2   3
+   /   / \
+  4   5   6
+```
+
+则会序列化为[1, sub(2), sub(3)]
+
+而sub(2) = [2, sub(4), sub(null)]
+
+sub(4) = [4, sub(null), sub(null)] = [4, null, null]
+
+所以sub(2) = [2, 4, null, null, null]
+
+sub(3) = [3, sub(5), sub(6)] = [3, 5, null, null, 6, null, null]
+
+所以整个树序列化后就为[1, 2, 4, null, null, null, 3, 5, null, null, 6, null, null]
+
+
+
+对于反序列化, 也可以按照这样的方式, 创建根节点, 反序列化左子树, 反序列化右子树, 把左右子树连接到根节点这4步操作来.
+
+**问题是如何保证左子树反序列化完了呢?**
+
+**这可以根据从流中读出的数据来判断, 如果是null, 那么这个子树就到这里就结束了, 接下来的值不可能作为null的子节点了, 停止递归.**
+
+
+
+```java
+/**
+ * Definition for a binary tree node.
+ * public class TreeNode {
+ *     int val;
+ *     TreeNode left;
+ *     TreeNode right;
+ *     TreeNode(int x) { val = x; }
+ * }
+ */
+public class Codec {
+    
+    // Encodes a tree to a single string.
+    public String serialize(TreeNode root) {
+        List<Integer> list = new ArrayList<>();
+        serialize(root, list);
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0; i < list.size(); ++i){
+            if(i != 0){
+                sb.append(",");
+            }
+            sb.append((list.get(i) == null) ? "null" : list.get(i));
+        }
+        return sb.toString();
+    }
+    private void serialize(TreeNode root, List<Integer> list){
+        if(root == null){
+            list.add(null);
+        }
+        else{
+            list.add(root.val);
+            serialize(root.left, list);
+            serialize(root.right, list);
+        }
+    }
+
+    // Decodes your encoded data to tree.
+    public TreeNode deserialize(String data) {
+        // transfer string to input stream, use a queue to simulate the stream
+        Queue<String> q = new ArrayDeque<>(Arrays.asList(data.split(",")));
+
+        return deserialize(q);
+        
+    }
+    private TreeNode deserialize(Queue<String> q){
+        String curr = q.poll();
+        if("null".equals(curr)){
+            return null;
+        }
+        else{
+            TreeNode ans = new TreeNode(Integer.valueOf(curr));
+            ans.left = deserialize(q);
+            ans.right = deserialize(q);
+            return ans;
+        }
     }
 }
 
